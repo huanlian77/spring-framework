@@ -18,10 +18,7 @@ package org.springframework.core.io;
 
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.util.Collection;
-import java.util.LinkedHashSet;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.springframework.lang.Nullable;
@@ -31,66 +28,37 @@ import org.springframework.util.ResourceUtils;
 import org.springframework.util.StringUtils;
 
 /**
- * Default implementation of the {@link ResourceLoader} interface.
- * Used by {@link ResourceEditor}, and serves as base class for
- * {@link org.springframework.context.support.AbstractApplicationContext}.
- * Can also be used standalone.
- *
- * <p>Will return a {@link UrlResource} if the location value is a URL,
- * and a {@link ClassPathResource} if it is a non-URL path or a
- * "classpath:" pseudo-URL.
- *
- * @author Juergen Hoeller
- * @since 10.03.2004
- * @see FileSystemResourceLoader
- * @see org.springframework.context.support.ClassPathXmlApplicationContext
+ * DefaultResourceLoader是ResourceLoader的默认实现
  */
 public class DefaultResourceLoader implements ResourceLoader {
 
 	@Nullable
 	private ClassLoader classLoader;
 
+
+	/**
+	 * 用户自定义协议解决策略
+	 */
 	private final Set<ProtocolResolver> protocolResolvers = new LinkedHashSet<>(4);
 
+	/**
+	 * 缓存Resource
+	 */
 	private final Map<Class<?>, Map<Resource, ?>> resourceCaches = new ConcurrentHashMap<>(4);
 
 
-	/**
-	 * Create a new DefaultResourceLoader.
-	 * <p>ClassLoader access will happen using the thread context class loader
-	 * at the time of actual resource access (since 5.3). For more control, pass
-	 * a specific ClassLoader to {@link #DefaultResourceLoader(ClassLoader)}.
-	 * @see java.lang.Thread#getContextClassLoader()
-	 */
 	public DefaultResourceLoader() {
 	}
 
-	/**
-	 * Create a new DefaultResourceLoader.
-	 * @param classLoader the ClassLoader to load class path resources with, or {@code null}
-	 * for using the thread context class loader at the time of actual resource access
-	 */
 	public DefaultResourceLoader(@Nullable ClassLoader classLoader) {
 		this.classLoader = classLoader;
 	}
 
 
-	/**
-	 * Specify the ClassLoader to load class path resources with, or {@code null}
-	 * for using the thread context class loader at the time of actual resource access.
-	 * <p>The default is that ClassLoader access will happen using the thread context
-	 * class loader at the time of actual resource access (since 5.3).
-	 */
 	public void setClassLoader(@Nullable ClassLoader classLoader) {
 		this.classLoader = classLoader;
 	}
 
-	/**
-	 * Return the ClassLoader to load class path resources with.
-	 * <p>Will get passed to ClassPathResource's constructor for all
-	 * ClassPathResource objects created by this resource loader.
-	 * @see ClassPathResource
-	 */
 	@Override
 	@Nullable
 	public ClassLoader getClassLoader() {
@@ -98,32 +66,22 @@ public class DefaultResourceLoader implements ResourceLoader {
 	}
 
 	/**
-	 * Register the given resolver with this resource loader, allowing for
-	 * additional protocols to be handled.
-	 * <p>Any such resolver will be invoked ahead of this loader's standard
-	 * resolution rules. It may therefore also override any default rules.
-	 * @since 4.3
-	 * @see #getProtocolResolvers()
+	 * 添加协议解析
+	 *
+	 * @param resolver
 	 */
 	public void addProtocolResolver(ProtocolResolver resolver) {
 		Assert.notNull(resolver, "ProtocolResolver must not be null");
 		this.protocolResolvers.add(resolver);
 	}
 
-	/**
-	 * Return the collection of currently registered protocol resolvers,
-	 * allowing for introspection as well as modification.
-	 * @since 4.3
-	 */
+
 	public Collection<ProtocolResolver> getProtocolResolvers() {
 		return this.protocolResolvers;
 	}
 
 	/**
-	 * Obtain a cache for the given value type, keyed by {@link Resource}.
-	 * @param valueType the value type, e.g. an ASM {@code MetadataReader}
-	 * @return the cache {@link Map}, shared at the {@code ResourceLoader} level
-	 * @since 5.0
+	 * 通过Class获取Map<Resource,T>
 	 */
 	@SuppressWarnings("unchecked")
 	public <T> Map<Resource, T> getResourceCache(Class<T> valueType) {
@@ -131,19 +89,24 @@ public class DefaultResourceLoader implements ResourceLoader {
 	}
 
 	/**
-	 * Clear all resource caches in this resource loader.
-	 * @since 5.0
-	 * @see #getResourceCache
+	 * 清空resourceCaches
 	 */
 	public void clearResourceCaches() {
 		this.resourceCaches.clear();
 	}
 
 
+	/**
+	 * 传入location，对location进行判断，不同类型的location，使用不同的Resource定义资源
+	 *
+	 * @param location
+	 * @return
+	 */
 	@Override
 	public Resource getResource(String location) {
 		Assert.notNull(location, "Location must not be null");
 
+		// 遍历ProtocolResolver来加载资源
 		for (ProtocolResolver protocolResolver : getProtocolResolvers()) {
 			Resource resource = protocolResolver.resolve(location, this);
 			if (resource != null) {
@@ -151,45 +114,29 @@ public class DefaultResourceLoader implements ResourceLoader {
 			}
 		}
 
-		if (location.startsWith("/")) {
+
+		if (location.startsWith("/")) { // “/”开头使用ClassPathContextResource加载资源
 			return getResourceByPath(location);
-		}
-		else if (location.startsWith(CLASSPATH_URL_PREFIX)) {
+		} else if (location.startsWith(CLASSPATH_URL_PREFIX)) { // classpath 开头使用 ClassPathResource 加载资源
 			return new ClassPathResource(location.substring(CLASSPATH_URL_PREFIX.length()), getClassLoader());
-		}
-		else {
+		} else {
 			try {
-				// Try to parse the location as a URL...
+				// 尝试使用URL加载资源，如果URL是文件类型，使用FileUrlResource加载资源，否则使用UrlResource加载资源
 				URL url = new URL(location);
 				return (ResourceUtils.isFileURL(url) ? new FileUrlResource(url) : new UrlResource(url));
-			}
-			catch (MalformedURLException ex) {
+			} catch (MalformedURLException ex) {
 				// No URL -> resolve as resource path.
 				return getResourceByPath(location);
 			}
 		}
 	}
 
-	/**
-	 * Return a Resource handle for the resource at the given path.
-	 * <p>The default implementation supports class path locations. This should
-	 * be appropriate for standalone implementations but can be overridden,
-	 * e.g. for implementations targeted at a Servlet container.
-	 * @param path the path to the resource
-	 * @return the corresponding Resource handle
-	 * @see ClassPathResource
-	 * @see org.springframework.context.support.FileSystemXmlApplicationContext#getResourceByPath
-	 * @see org.springframework.web.context.support.XmlWebApplicationContext#getResourceByPath
-	 */
 	protected Resource getResourceByPath(String path) {
 		return new ClassPathContextResource(path, getClassLoader());
 	}
 
 
-	/**
-	 * ClassPathResource that explicitly expresses a context-relative path
-	 * through implementing the ContextResource interface.
-	 */
+	// TODO: 2020/7/9 这个类不知道有什么用，感觉完全可以用ClassPathResource代替
 	protected static class ClassPathContextResource extends ClassPathResource implements ContextResource {
 
 		public ClassPathContextResource(String path, @Nullable ClassLoader classLoader) {

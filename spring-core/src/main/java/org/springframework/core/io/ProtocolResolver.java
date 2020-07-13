@@ -19,15 +19,12 @@ package org.springframework.core.io;
 import org.springframework.lang.Nullable;
 
 /**
- * A resolution strategy for protocol-specific resource handles.
- *
- * <p>Used as an SPI for {@link DefaultResourceLoader}, allowing for
- * custom protocols to be handled without subclassing the loader
- * implementation (or application context implementation).
- *
- * @author Juergen Hoeller
- * @since 4.3
- * @see DefaultResourceLoader#addProtocolResolver
+ * 用户自定义特殊协议加载资源的一种策略
+ * <p>
+ * 使用方式:
+ * 实现改接口，然后使用 DefaultResourceLoader Bean,
+ * 并调用 addProtocolResolver(ProtocolResolver),
+ * 最后使用getResource(String)指定资源路径，就可以加载资源了。
  */
 @FunctionalInterface
 public interface ProtocolResolver {
@@ -35,7 +32,8 @@ public interface ProtocolResolver {
 	/**
 	 * Resolve the given location against the given resource loader
 	 * if this implementation's protocol matches.
-	 * @param location the user-specified resource location
+	 *
+	 * @param location       the user-specified resource location
 	 * @param resourceLoader the associated resource loader
 	 * @return a corresponding {@code Resource} handle if the given location
 	 * matches this resolver's protocol, or {@code null} otherwise

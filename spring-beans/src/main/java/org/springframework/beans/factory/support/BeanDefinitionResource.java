@@ -26,29 +26,22 @@ import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 
 /**
- * Descriptive {@link org.springframework.core.io.Resource} wrapper for
- * a {@link org.springframework.beans.factory.config.BeanDefinition}.
- *
- * @author Juergen Hoeller
- * @since 2.5.2
- * @see org.springframework.core.io.DescriptiveResource
+ * BeanDefinition类型的Resource，继承AbstractResource类
+ * <p>
+ * {@link BeanDefinition} 使用于描述Spring中的Bean对象
  */
 class BeanDefinitionResource extends AbstractResource {
 
 	private final BeanDefinition beanDefinition;
 
-
-	/**
-	 * Create a new BeanDefinitionResource.
-	 * @param beanDefinition the BeanDefinition object to wrap
-	 */
+	// TODO: 2020/7/9 为什么需要BeanDefinitionResource对象
 	public BeanDefinitionResource(BeanDefinition beanDefinition) {
 		Assert.notNull(beanDefinition, "BeanDefinition must not be null");
 		this.beanDefinition = beanDefinition;
 	}
 
 	/**
-	 * Return the wrapped BeanDefinition object.
+	 * 返回BeanDefinition对象
 	 */
 	public final BeanDefinition getBeanDefinition() {
 		return this.beanDefinition;
@@ -77,18 +70,13 @@ class BeanDefinitionResource extends AbstractResource {
 	}
 
 
-	/**
-	 * This implementation compares the underlying BeanDefinition.
-	 */
 	@Override
 	public boolean equals(@Nullable Object other) {
 		return (this == other || (other instanceof BeanDefinitionResource &&
 				((BeanDefinitionResource) other).beanDefinition.equals(this.beanDefinition)));
 	}
 
-	/**
-	 * This implementation returns the hash code of the underlying BeanDefinition.
-	 */
+
 	@Override
 	public int hashCode() {
 		return this.beanDefinition.hashCode();

@@ -31,27 +31,19 @@ import java.nio.file.StandardOpenOption;
 import org.springframework.util.ResourceUtils;
 
 /**
- * Abstract base class for resources which resolve URLs into File references,
- * such as {@link UrlResource} or {@link ClassPathResource}.
- *
- * <p>Detects the "file" protocol as well as the JBoss "vfs" protocol in URLs,
- * resolving file system references accordingly.
- *
- * @author Juergen Hoeller
- * @since 3.0
+ * 抽象的解析Url类型的Resource
  */
 public abstract class AbstractFileResolvingResource extends AbstractResource {
 
 	@Override
 	public boolean exists() {
 		try {
+			// 通过 AbstractFileResolvingResource 的子类获取 URL
+			// 子类有 ClassPathResource 和 UrlResource
 			URL url = getURL();
-			if (ResourceUtils.isFileURL(url)) {
-				// Proceed with file system resolution
+			if (ResourceUtils.isFileURL(url)) { // 判断是否是文件类型, ClassPathResource是文件类型
 				return getFile().exists();
-			}
-			else {
-				// Try a URL connection content-length header
+			} else { // 判断是否是Url类型，UrlResource是url类型
 				URLConnection con = url.openConnection();
 				customizeConnection(con);
 				HttpURLConnection httpCon =
@@ -60,8 +52,7 @@ public abstract class AbstractFileResolvingResource extends AbstractResource {
 					int code = httpCon.getResponseCode();
 					if (code == HttpURLConnection.HTTP_OK) {
 						return true;
-					}
-					else if (code == HttpURLConnection.HTTP_NOT_FOUND) {
+					} else if (code == HttpURLConnection.HTTP_NOT_FOUND) {
 						return false;
 					}
 				}
@@ -72,15 +63,13 @@ public abstract class AbstractFileResolvingResource extends AbstractResource {
 					// No HTTP OK status, and no content-length header: give up
 					httpCon.disconnect();
 					return false;
-				}
-				else {
+				} else {
 					// Fall back to stream existence: can we open the stream?
 					getInputStream().close();
 					return true;
 				}
 			}
-		}
-		catch (IOException ex) {
+		} catch (IOException ex) {
 			return false;
 		}
 	}
@@ -93,8 +82,7 @@ public abstract class AbstractFileResolvingResource extends AbstractResource {
 				// Proceed with file system resolution
 				File file = getFile();
 				return (file.canRead() && !file.isDirectory());
-			}
-			else {
+			} else {
 				// Try InputStream resolution for jar resources
 				URLConnection con = url.openConnection();
 				customizeConnection(con);
@@ -109,19 +97,16 @@ public abstract class AbstractFileResolvingResource extends AbstractResource {
 				long contentLength = con.getContentLengthLong();
 				if (contentLength > 0) {
 					return true;
-				}
-				else if (contentLength == 0) {
+				} else if (contentLength == 0) {
 					// Empty file or directory -> not considered readable...
 					return false;
-				}
-				else {
+				} else {
 					// Fall back to stream existence: can we open the stream?
 					getInputStream().close();
 					return true;
 				}
 			}
-		}
-		catch (IOException ex) {
+		} catch (IOException ex) {
 			return false;
 		}
 	}
@@ -134,17 +119,12 @@ public abstract class AbstractFileResolvingResource extends AbstractResource {
 				return VfsResourceDelegate.getResource(url).isFile();
 			}
 			return ResourceUtils.URL_PROTOCOL_FILE.equals(url.getProtocol());
-		}
-		catch (IOException ex) {
+		} catch (IOException ex) {
 			return false;
 		}
 	}
 
-	/**
-	 * This implementation returns a File reference for the underlying class path
-	 * resource, provided that it refers to a file in the file system.
-	 * @see org.springframework.util.ResourceUtils#getFile(java.net.URL, String)
-	 */
+
 	@Override
 	public File getFile() throws IOException {
 		URL url = getURL();
@@ -154,10 +134,7 @@ public abstract class AbstractFileResolvingResource extends AbstractResource {
 		return ResourceUtils.getFile(url, getDescription());
 	}
 
-	/**
-	 * This implementation determines the underlying File
-	 * (or jar file, in case of a resource in a jar/zip).
-	 */
+
 	@Override
 	protected File getFileForLastModifiedCheck() throws IOException {
 		URL url = getURL();
@@ -167,8 +144,7 @@ public abstract class AbstractFileResolvingResource extends AbstractResource {
 				return VfsResourceDelegate.getResource(actualUrl).getFile();
 			}
 			return ResourceUtils.getFile(actualUrl, "Jar URL");
-		}
-		else {
+		} else {
 			return getFile();
 		}
 	}
@@ -176,8 +152,9 @@ public abstract class AbstractFileResolvingResource extends AbstractResource {
 	/**
 	 * This implementation returns a File reference for the given URI-identified
 	 * resource, provided that it refers to a file in the file system.
-	 * @since 5.0
+	 *
 	 * @see #getFile(URI)
+	 * @since 5.0
 	 */
 	protected boolean isFile(URI uri) {
 		try {
@@ -185,8 +162,7 @@ public abstract class AbstractFileResolvingResource extends AbstractResource {
 				return VfsResourceDelegate.getResource(uri).isFile();
 			}
 			return ResourceUtils.URL_PROTOCOL_FILE.equals(uri.getScheme());
-		}
-		catch (IOException ex) {
+		} catch (IOException ex) {
 			return false;
 		}
 	}
@@ -194,6 +170,7 @@ public abstract class AbstractFileResolvingResource extends AbstractResource {
 	/**
 	 * This implementation returns a File reference for the given URI-identified
 	 * resource, provided that it refers to a file in the file system.
+	 *
 	 * @see org.springframework.util.ResourceUtils#getFile(java.net.URI, String)
 	 */
 	protected File getFile(URI uri) throws IOException {
@@ -206,16 +183,16 @@ public abstract class AbstractFileResolvingResource extends AbstractResource {
 	/**
 	 * This implementation returns a FileChannel for the given URI-identified
 	 * resource, provided that it refers to a file in the file system.
-	 * @since 5.0
+	 *
 	 * @see #getFile()
+	 * @since 5.0
 	 */
 	@Override
 	public ReadableByteChannel readableChannel() throws IOException {
 		try {
 			// Try file system channel
 			return FileChannel.open(getFile().toPath(), StandardOpenOption.READ);
-		}
-		catch (FileNotFoundException | NoSuchFileException ex) {
+		} catch (FileNotFoundException | NoSuchFileException ex) {
 			// Fall back to InputStream adaptation in superclass
 			return super.readableChannel();
 		}
@@ -233,8 +210,7 @@ public abstract class AbstractFileResolvingResource extends AbstractResource {
 						" cannot be resolved in the file system for checking its content length");
 			}
 			return length;
-		}
-		else {
+		} else {
 			// Try a URL connection content-length header
 			URLConnection con = url.openConnection();
 			customizeConnection(con);
@@ -255,8 +231,7 @@ public abstract class AbstractFileResolvingResource extends AbstractResource {
 				if (lastModified > 0L || fileToCheck.exists()) {
 					return lastModified;
 				}
-			}
-			catch (FileNotFoundException ex) {
+			} catch (FileNotFoundException ex) {
 				// Defensively fall back to URL connection check instead
 			}
 		}
@@ -277,6 +252,7 @@ public abstract class AbstractFileResolvingResource extends AbstractResource {
 	 * <p>Calls {@link ResourceUtils#useCachesIfNecessary(URLConnection)} and
 	 * delegates to {@link #customizeConnection(HttpURLConnection)} if possible.
 	 * Can be overridden in subclasses.
+	 *
 	 * @param con the URLConnection to customize
 	 * @throws IOException if thrown from URLConnection methods
 	 */
@@ -291,6 +267,7 @@ public abstract class AbstractFileResolvingResource extends AbstractResource {
 	 * Customize the given {@link HttpURLConnection}, obtained in the course of an
 	 * {@link #exists()}, {@link #contentLength()} or {@link #lastModified()} call.
 	 * <p>Sets request method "HEAD" by default. Can be overridden in subclasses.
+	 *
 	 * @param con the HttpURLConnection to customize
 	 * @throws IOException if thrown from HttpURLConnection methods
 	 */
